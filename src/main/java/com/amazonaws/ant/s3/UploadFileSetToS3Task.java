@@ -23,7 +23,9 @@ import org.apache.tools.ant.DirectoryScanner;
 import org.apache.tools.ant.types.FileSet;
 
 import com.amazonaws.ant.AWSAntTask;
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.Upload;
 
@@ -37,6 +39,8 @@ public class UploadFileSetToS3Task extends AWSAntTask {
     private boolean printStatusUpdates = false;
     private boolean continueOnFail = false;
     private int statusUpdatePeriodInMs = 500;
+	private String endpoint;
+	private String objectACL;
 
     /**
      * Specify a fileset to be deployed.
@@ -112,6 +116,28 @@ public class UploadFileSetToS3Task extends AWSAntTask {
     }
 
     /**
+     * Set the endpoint to use for the service.
+     * Not required, default is the Amazon S3 service.
+     *
+     * @param endpoint
+     *            The endpoint or full URL including the protocol.
+     */
+	public void setEndpoint(String endpoint) {
+		this.endpoint = endpoint;
+	}
+
+    /**
+     * Set the ACL to public read.
+     * Not required, default is to use Private.
+     *
+     * @param  
+     *            The endpoint or full URL including the protocol.
+     */
+	public void setObjectACL(String objectACL) {
+		this.objectACL = objectACL;
+	}
+
+    /**
      * Verifies that all necessary parameters were set
      */
     private void checkParameters() {
@@ -142,6 +168,13 @@ public class UploadFileSetToS3Task extends AWSAntTask {
         } else {
             transferManager = new TransferManager();
         }
+
+		final AmazonS3 conn = transferManager.getAmazonS3Client();
+
+		if (endpoint != null) {
+			conn.setEndpoint(endpoint);
+		}
+
         for (FileSet fileSet : filesets) {
             DirectoryScanner directoryScanner = fileSet.getDirectoryScanner(getProject());
             String[] includedFiles = directoryScanner.getIncludedFiles();
@@ -173,6 +206,13 @@ public class UploadFileSetToS3Task extends AWSAntTask {
                         } else {
                             upload.waitForCompletion();
                         }
+
+						if (objectACL != null) {
+							if ("PublicRead".equals(objectACL)) {
+								conn.setObjectAcl(bucketName, key, CannedAccessControlList.PublicRead);
+							}
+						}
+
                         System.out.println("Upload succesful");
                     } catch (Exception e) {
                         if (!continueOnFail) {
