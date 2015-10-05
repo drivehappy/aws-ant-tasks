@@ -25,7 +25,9 @@ import org.apache.tools.ant.types.FileSet;
 import com.amazonaws.ant.AWSAntTask;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.Upload;
 
@@ -41,6 +43,7 @@ public class UploadFileSetToS3Task extends AWSAntTask {
     private int statusUpdatePeriodInMs = 500;
 	private String endpoint;
 	private String objectACL;
+	private boolean overwriteObject = true;
 
     /**
      * Specify a fileset to be deployed.
@@ -138,6 +141,17 @@ public class UploadFileSetToS3Task extends AWSAntTask {
 	}
 
     /**
+     * Set the object to overwrite any existing objects of the same prefix and name.
+     * Not required, default is to override.
+     *
+     * @param  
+     *            Whether you want objects to overwrite each other.
+     */
+	public void setOverwriteObject(Boolean overwriteObject) {
+		this.overwriteObject = overwriteObject;
+	}
+
+    /**
      * Verifies that all necessary parameters were set
      */
     private void checkParameters() {
@@ -183,6 +197,22 @@ public class UploadFileSetToS3Task extends AWSAntTask {
                     File base = directoryScanner.getBasedir();
                     File file = new File(base, includedFile);
                     String key = keyPrefix + file.getName();
+
+					if (!overwriteObject) {
+						try {
+							final AmazonS3Client client = getOrCreateClient(AmazonS3Client.class);
+							ObjectMetadata objMeta = client.getObjectMetadata(bucketName, key);
+							System.out.println("Warning: Not overwriting object as it already exists: " + key);
+							continue;
+						} catch (AmazonS3Exception e) {
+							// This is an expected status code of 404 if the object doesn't exist, do nothing
+							if (e.getStatusCode() != 404) {
+								throw e;
+							}
+							System.out.println("Error: Unexpected status code when attempting to retrieve object metadata: " + e.getStatusCode() + ", message was: " + e);
+						}
+					}
+
                     try {
                         System.out.println("Uploading file " + file.getName()
                                 + "...");
