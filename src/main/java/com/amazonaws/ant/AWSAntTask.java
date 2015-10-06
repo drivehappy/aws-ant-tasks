@@ -143,6 +143,7 @@ public abstract class AWSAntTask extends Task {
 				Constructor<T> constructor = clientClass
 					.getConstructor(ClientConfiguration.class);
 				return constructor
+					.newInstance(clientConfiguration);
 			}
         } catch (Exception e) {
             throw new RuntimeException("Unable to create client: "
