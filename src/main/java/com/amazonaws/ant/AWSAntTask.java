@@ -25,7 +25,10 @@ import org.apache.tools.ant.Task;
 import com.amazonaws.AmazonWebServiceClient;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSCredentialsProviderChain;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.RegionUtils;
 
@@ -39,6 +42,7 @@ public abstract class AWSAntTask extends Task {
     protected String awsAccessKeyId;
     protected String awsSecretKey;
     protected String awsRegion;
+	protected String awsCredentialProfile;
 
     /**
      * Sets AWS Access Key.
@@ -73,6 +77,16 @@ public abstract class AWSAntTask extends Task {
     public void setAWSRegion(String awsRegion) {
         this.awsRegion = awsRegion;
     }
+
+    /**
+     * Sets AWS Credentials Profile.
+     * 
+     * @param awsCredentialProfile 
+     *            The AWS credentials profile name.
+     */
+	public void setAWSCredentialProfile(String awsCredentialProfile) {
+		this.awsCredentialProfile = awsCredentialProfile;
+	}
     
     @SuppressWarnings("unchecked")
     public <T extends AmazonWebServiceClient> T getOrCreateClient(
@@ -94,7 +108,7 @@ public abstract class AWSAntTask extends Task {
             }
             cache.put(key, newClient);
             return newClient;
-        } else {
+        } else {	
             return client;
         }
     }
@@ -117,13 +131,19 @@ public abstract class AWSAntTask extends Task {
             if (awsSecretKey != null && awsAccessKeyId != null) {
                 Constructor<T> constructor = clientClass.getConstructor(
                         AWSCredentials.class, ClientConfiguration.class);
+				System.out.println("Error creating client");
                 return constructor.newInstance(new BasicAWSCredentials(
                         awsAccessKeyId, awsSecretKey), clientConfiguration);
-            }
-            Constructor<T> constructor = clientClass
-                    .getConstructor(ClientConfiguration.class);
-            return constructor
-                    .newInstance(clientConfiguration);
+            } else if (awsCredentialProfile != null) {
+				Constructor<T> constructor = clientClass
+						.getConstructor(AWSCredentialsProvider.class, ClientConfiguration.class);
+				return constructor
+						.newInstance(new ProfileCredentialsProvider(awsCredentialProfile), clientConfiguration);
+			} else {
+				Constructor<T> constructor = clientClass
+					.getConstructor(ClientConfiguration.class);
+				return constructor
+			}
         } catch (Exception e) {
             throw new RuntimeException("Unable to create client: "
                     + e.getMessage(), e);

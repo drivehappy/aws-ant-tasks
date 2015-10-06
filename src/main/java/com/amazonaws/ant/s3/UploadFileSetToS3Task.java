@@ -23,6 +23,7 @@ import org.apache.tools.ant.DirectoryScanner;
 import org.apache.tools.ant.types.FileSet;
 
 import com.amazonaws.ant.AWSAntTask;
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
@@ -176,12 +177,7 @@ public class UploadFileSetToS3Task extends AWSAntTask {
     @Override
 	public void execute() {
         checkParameters();
-        TransferManager transferManager;
-        if (awsSecretKey != null && awsAccessKeyId != null) {
-            transferManager = new TransferManager(getOrCreateClient(AmazonS3Client.class));
-        } else {
-            transferManager = new TransferManager();
-        }
+        TransferManager transferManager = new TransferManager(getOrCreateClient(AmazonS3Client.class));
 
 		final AmazonS3 conn = transferManager.getAmazonS3Client();
 
